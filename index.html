@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#e0523a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="הטיולים שלי">
+<title>יומן הטיולים שלי</title>
+<style>
+:root{--bg:#f6f4ef;--surface:#fff;--text:#1d2a33;--muted:#6b7780;--accent:#e0523a;--land:#dfe6dc;--line:#b9c4b8;--sea:#eaf2f6;--border:#dcdcd6;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12181d;--surface:#1c252c;--text:#e9eef1;--muted:#8d9aa3;--accent:#ff7a5f;--land:#2a3a35;--line:#44564f;--sea:#172229;--border:#2d3943}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif;display:flex;flex-direction:column}
+header{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--border)}
+h1{font-size:18px;margin:0;flex:1}
+.stat{font-size:13px;color:var(--muted)}.stat b{color:var(--text);font-size:16px}
+button{font:inherit;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:8px;padding:7px 12px}
+button.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+button.del{color:#c0392b}
+main{flex:1;position:relative;min-height:0;background:var(--sea)}
+#map{position:absolute;inset:0}
+#panel{position:absolute;z-index:5;background:var(--surface);border:1px solid var(--border);box-shadow:0 4px 24px rgba(0,0,0,.2);padding:16px;overflow-y:auto;display:none;top:12px;bottom:12px;inset-inline-start:12px;width:min(360px,calc(100% - 24px))}
+#panel.open{display:block}
+@media (max-width:640px){#panel{top:auto;bottom:0;inset-inline:0;width:100%;max-height:62%;border-radius:16px 16px 0 0}}
+#panel{border-radius:14px}
+label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+input,textarea{width:100%;font:inherit;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text)}
+.row{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.hint{font-size:12px;color:var(--accent);margin-top:6px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:12px}
+.ph{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;background:var(--bg)}
+.ph img{width:100%;height:100%;object-fit:cover;cursor:zoom-in}
+.ph button{position:absolute;top:3px;inset-inline-start:3px;padding:0 6px;font-size:14px;line-height:20px;opacity:.9}
+.meta{color:var(--muted);font-size:14px;margin:2px 0}
+#lb{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.88);display:none;align-items:center;justify-content:center;padding:16px}
+#lb.open{display:flex}#lb img{max-width:100%;max-height:100%;border-radius:8px}
+.x{float:inline-end;border:none;background:none;font-size:20px;padding:0 4px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🌍 יומן הטיולים שלי</h1>
+  <span class="stat"><b id="nc">0</b> ערים</span>
+  <span class="stat"><b id="nk">0</b> מדינות</span>
+  <button id="exBtn" title="גיבוי לקובץ">⬇</button><button id="imBtn" title="שחזור מקובץ">⬆</button><input type="file" id="imFile" accept="application/json" hidden>
+  <button class="pri" id="addBtn">+ הוסף עיר</button>
+</header>
+<main><div id="map"></div><div id="panel"></div></main>
+<div id="lb"><img alt=""></div>
+<datalist id="cities"></datalist>
+<script src="lib/echarts.min.js"></script>
+<script src="lib/world.js"></script>
+<script>
+const CITIES = `פריז|צרפת|48.86|2.35
+לונדון|בריטניה|51.51|-0.13
+רומא|איטליה|41.9|12.5
+ברצלונה|ספרד|41.39|2.17
+מדריד|ספרד|40.42|-3.7
+ליסבון|פורטוגל|38.72|-9.14
+אמסטרדם|הולנד|52.37|4.9
+ברלין|גרמניה|52.52|13.4
+מינכן|גרמניה|48.14|11.58
+פראג|צ׳כיה|50.08|14.44
+וינה|אוסטריה|48.21|16.37
+בודפשט|הונגריה|47.5|19.04
+אתונה|יוון|37.98|23.73
+איסטנבול|טורקיה|41.01|28.98
+קראקוב|פולין|50.06|19.94
+קופנהגן|דנמרק|55.68|12.57
+שטוקהולם|שוודיה|59.33|18.07
+רייקיאוויק|איסלנד|64.15|-21.94
+ציריך|שווייץ|47.38|8.54
+ונציה|איטליה|45.44|12.32
+דובאי|איחוד האמירויות|25.2|55.27
+קהיר|מצרים|30.04|31.24
+מרקש|מרוקו|31.63|-8.0
+קייפטאון|דרום אפריקה|-33.92|18.42
+נאירובי|קניה|-1.29|36.82
+בנגקוק|תאילנד|13.76|100.5
+צ׳יאנג מאי|תאילנד|18.79|98.98
+סינגפור|סינגפור|1.35|103.82
+הנוי|וייטנאם|21.03|105.85
+באלי|אינדונזיה|-8.41|115.19
+טוקיו|יפן|35.68|139.69
+קיוטו|יפן|35.01|135.77
+סיאול|דרום קוריאה|37.57|126.98
+בייג׳ינג|סין|39.9|116.4
+הונג קונג|הונג קונג|22.32|114.17
+דלהי|הודו|28.61|77.21
+קטמנדו|נפאל|27.72|85.32
+סידני|אוסטרליה|-33.87|151.21
+מלבורן|אוסטרליה|-37.81|144.96
+אוקלנד|ניו זילנד|-36.85|174.76
+ניו יורק|ארצות הברית|40.71|-74.01
+לוס אנג׳לס|ארצות הברית|34.05|-118.24
+סן פרנסיסקו|ארצות הברית|37.77|-122.42
+מיאמי|ארצות הברית|25.76|-80.19
+לאס וגאס|ארצות הברית|36.17|-115.14
+טורונטו|קנדה|43.65|-79.38
+וונקובר|קנדה|49.28|-123.12
+מקסיקו סיטי|מקסיקו|19.43|-99.13
+קנקון|מקסיקו|21.16|-86.85
+ריו דה ז׳נרו|ברזיל|-22.91|-43.17
+בואנוס איירס|ארגנטינה|-34.6|-58.38
+לימה|פרו|-12.05|-77.04
+קוסקו|פרו|-13.53|-71.97
+סנטיאגו|צ׳ילה|-33.45|-70.67
+תל אביב|ישראל|32.09|34.78
+ירושלים|ישראל|31.77|35.21`.split('\n').map(l=>{const [n,c,la,ln]=l.split('|');return{n,c,lat:+la,lng:+ln}});
+document.getElementById('cities').innerHTML=CITIES.map(c=>`<option value="${c.n}">`).join('');
+
+// --- storage (IndexedDB) ---
+let places=[],sel=null,mode=null,pending=null,pick=false;
+const idb=()=>new Promise((res,rej)=>{const r=indexedDB.open('travelmap',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+async function load(){try{const d=await idb();return await new Promise(r=>{const q=d.transaction('kv').objectStore('kv').get('places');q.onsuccess=()=>r(q.result||[]);q.onerror=()=>r([])})}catch(e){return[]}}
+async function save(){try{const d=await idb();d.transaction('kv','readwrite').objectStore('kv').put(places,'places')}catch(e){console.error(e)}}
+
+// --- helpers ---
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+function compress(file){return new Promise(res=>{const u=URL.createObjectURL(file),i=new Image();i.onload=()=>{const s=Math.min(1,1000/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=i.width*s;c.height=i.height*s;c.getContext('2d').drawImage(i,0,0,c.width,c.height);URL.revokeObjectURL(u);res(c.toDataURL('image/jpeg',.75))};i.src=u})}
+
+// --- map ---
+const chart=echarts.init($('map'));
+function draw(){
+  const pins=places.map(p=>({name:p.name,value:[p.lng,p.lat],id:p.id}));
+  const series=[{type:'scatter',coordinateSystem:'geo',symbol:'pin',symbolSize:30,itemStyle:{color:css('--accent')},label:{show:true,formatter:'{b}',position:'bottom',color:css('--text'),fontSize:11},data:pins,zlevel:2}];
+  if(pending)series.push({type:'scatter',coordinateSystem:'geo',symbol:'circle',symbolSize:16,itemStyle:{color:'#2f80ed',borderColor:'#fff',borderWidth:2},data:[{value:[pending.lng,pending.lat]}],zlevel:3});
+  chart.setOption({backgroundColor:'transparent',geo:{map:'world',roam:true,zoom:1.15,itemStyle:{areaColor:css('--land'),borderColor:css('--line'),borderWidth:.6},emphasis:{disabled:true},silent:false},tooltip:{show:false},series},true);
+  $('nc').textContent=places.length;$('nk').textContent=new Set(places.map(p=>p.country)).size;
+}
+chart.on('click',e=>{if(e.componentType==='series'&&e.data&&e.data.id){sel=e.data.id;mode='view';render()}});
+chart.getZr().on('click',e=>{if(!pick||e.target)return;const [lng,lat]=chart.convertFromPixel('geo',[e.offsetX,e.offsetY]);if(lng==null||isNaN(lng))return;pending={lat:+lat.toFixed(3),lng:+lng.toFixed(3)};pick=false;render();draw()});
+addEventListener('resize',()=>chart.resize());
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',draw);
+
+// --- panel ---
+function render(){
+  const p=$('panel');
+  if(!mode){p.classList.remove('open');return}
+  p.classList.add('open');
+  if(mode==='add'){
+    const v=window._f||{};
+    p.innerHTML=`<button class="x" id="cl">✕</button><h3>עיר חדשה</h3>
+    <label>עיר (התחל להקליד)</label><input id="fn" list="cities" value="${esc(v.n)}" autocomplete="off">
+    <label>מדינה</label><input id="fc" value="${esc(v.c)}">
+    <label>תאריך ביקור</label><input id="fd" type="date" value="${esc(v.d)}">
+    <label>הערות</label><textarea id="fo" rows="2">${esc(v.o)}</textarea>
+    <div class="row"><button id="pk">📍 בחר מיקום על המפה</button></div>
+    <div class="hint">${pick?'לחץ על נקודה במפה…':pending?`מיקום נבחר: ${pending.lat}, ${pending.lng}`:'עיר מהרשימה מתמקמת אוטומטית; אחרת בחר על המפה'}</div>
+    <div class="row"><button class="pri" id="sv">שמור</button><button id="cc">ביטול</button></div>`;
+    const keep=()=>window._f={n:$('fn').value,c:$('fc').value,d:$('fd').value,o:$('fo').value};
+    $('fn').oninput=()=>{const c=CITIES.find(x=>x.n===$('fn').value.trim());if(c){$('fc').value=c.c;pending={lat:c.lat,lng:c.lng};keep();draw();render();$('fn').focus()}};
+    $('pk').onclick=()=>{keep();pick=true;render()};
+    $('sv').onclick=async()=>{keep();const f=window._f;if(!f.n.trim()||!pending){alert('חסרים שם עיר או מיקום');return}
+      const np={id:Date.now().toString(36),name:f.n.trim(),country:f.c.trim()||'לא ידוע',date:f.d,note:f.o,lat:pending.lat,lng:pending.lng,photos:[]};
+      places.push(np);await save();sel=np.id;pending=null;window._f=null;mode='view';draw();render()};
+    $('cc').onclick=$('cl').onclick=()=>{mode=null;pending=null;pick=false;window._f=null;draw();render()};
+  }else{
+    const pl=places.find(x=>x.id===sel);if(!pl){mode=null;return render()}
+    p.innerHTML=`<button class="x" id="cl">✕</button><h3 style="margin:0">${esc(pl.name)}</h3>
+    <div class="meta">${esc(pl.country)}${pl.date?' · '+esc(pl.date):''}</div>${pl.note?`<div class="meta">${esc(pl.note)}</div>`:''}
+    <div class="row"><button class="pri" id="up">📷 הוסף תמונות</button><button class="del" id="dp">מחק עיר</button></div>
+    <input type="file" id="fi" accept="image/*" multiple hidden>
+    <div class="grid">${pl.photos.map((ph,i)=>`<div class="ph"><img src="${ph}" data-i="${i}" alt=""><button class="del" data-d="${i}">×</button></div>`).join('')}</div>
+    ${pl.photos.length?'':'<div class="meta" style="margin-top:12px">עוד אין תמונות. הוסף תמונות שלך מהמקום.</div>'}`;
+    $('cl').onclick=()=>{mode=null;render()};
+    $('up').onclick=()=>$('fi').click();
+    $('fi').onchange=async e=>{for(const f of e.target.files)pl.photos.push(await compress(f));await save();render()};
+    $('dp').onclick=async()=>{if(confirm('למחוק את '+pl.name+' ואת כל התמונות שלה?')){places=places.filter(x=>x.id!==pl.id);await save();mode=null;draw();render()}};
+    p.querySelectorAll('img[data-i]').forEach(im=>im.onclick=()=>{$('lb').querySelector('img').src=im.src;$('lb').classList.add('open')});
+    p.querySelectorAll('[data-d]').forEach(b=>b.onclick=async()=>{pl.photos.splice(+b.dataset.d,1);await save();render()});
+  }
+}
+$('lb').onclick=()=>$('lb').classList.remove('open');
+$('addBtn').onclick=()=>{mode='add';pending=null;window._f=null;render()};
+load().then(d=>{places=d;draw()});
+
+// --- backup / restore ---
+$('exBtn').onclick=()=>{const b=new Blob([JSON.stringify({v:1,places})],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='travel-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
+$('imBtn').onclick=()=>$('imFile').click();
+$('imFile').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
+  try{const d=JSON.parse(await f.text());if(!Array.isArray(d.places))throw 0;
+    if(!confirm('לשחזר '+d.places.length+' ערים מהקובץ? ערים עם אותו מזהה יוחלפו.'))return;
+    d.places.forEach(n=>{const i=places.findIndex(x=>x.id===n.id);i>=0?places[i]=n:places.push(n)});
+    await save();mode=null;draw();render()}catch(err){alert('הקובץ לא תקין')}};
+// --- persistence + offline ---
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
+if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+
+</script>
+</body>
+</html>

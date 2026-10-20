@@ -1,1 +1,4 @@
-# Places-I-Visited
+# יומן הטיולים שלי
+
+העלאה ל-GitHub Pages: העלה את כל תוכן התיקייה לריפו, ואז Settings ← Pages ← Deploy from a branch ← main / root.
+הנתונים נשמרים רק בדפדפן שלך. השתמש בכפתור ⬇ לגיבוי ובכפתור ⬆ לשחזור.
